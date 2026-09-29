@@ -2,9 +2,12 @@
 
 namespace GameOfLife.ConsoleApp
 {
-    internal class Program
+    internal class MenuManager : IMenuManager
     {
-        private static void Main(string[] args)
+        private const int MinSize = 2;
+        private const int MaxSize = 50;
+
+        public void Run()
         {
             var running = true;
             while (running)
@@ -27,7 +30,7 @@ namespace GameOfLife.ConsoleApp
             }
         }
 
-        private static void ShowMenu()
+        public void ShowMenu()
         {
             Console.Clear();
             Console.WriteLine("1) Start new game");
@@ -35,30 +38,37 @@ namespace GameOfLife.ConsoleApp
             Console.Write("\nSelect an option: ");
         }
 
-        private static void StartGame()
+        public void StartGame()
         {
             Console.Clear();
-            Console.Write("Enter game field size (2-50): ");
+            Console.Write($"Enter game field size ({MinSize}-{MaxSize}): ");
 
-            if (!int.TryParse(Console.ReadLine(), out int size) || size < 2 || size > 50)
+            if (!int.TryParse(Console.ReadLine(), out int size) || size < MinSize || size > MaxSize)
             {
                 Console.ReadLine();
                 return;
             }
 
-            int[,] grid = GetDefaultGrid(size);
+            Cell[,] grid = GetDefaultGrid(size);
             PrintGrid(grid);
 
             Console.ReadLine();
         }
 
-        private static int[,] GetDefaultGrid(int size)
+        private Cell[,] GetDefaultGrid(int size)
         {
-            int[,] grid = new int[size, size];
+            Cell[,] grid = new Cell[size, size];
+            for (int i = 0; i < size; i++)
+            {
+                for (int j = 0; j < size; j++)
+                {
+                    grid[i, j] = new Cell(false);
+                }
+            }
             return grid;
         }
 
-        private static void PrintGrid(int[,] grid)
+        public void PrintGrid(Cell[,] grid)
         {
             Console.Clear();
 
@@ -69,7 +79,7 @@ namespace GameOfLife.ConsoleApp
             {
                 for (int j = 0; j < cols; j++)
                 {
-                    Console.Write(grid[i, j] + " ");
+                    Console.Write(grid[i, j].GetSymbol() + " ");
                 }
                 Console.WriteLine();
             }
