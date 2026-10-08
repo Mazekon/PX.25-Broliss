@@ -6,10 +6,7 @@ namespace GameOfLife.ConsoleApp
     {
         private const int MinSize = 2;
         private const int MaxSize = 50;
-        /// <summary>
-        /// will attempt to return grid, if it exists.
-        /// otherwise returns a new
-        /// </summary>
+     
 
         public void Run()
         {

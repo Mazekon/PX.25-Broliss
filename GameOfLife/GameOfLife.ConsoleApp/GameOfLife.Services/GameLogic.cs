@@ -29,4 +29,3 @@
     }
 }
 
-public char[,] GetNextGeneration(char[,] currentBoard)

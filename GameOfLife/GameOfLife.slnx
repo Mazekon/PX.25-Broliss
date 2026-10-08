@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="GameOfLife.ConsoleApp/GameOfLife.ConsoleApp.csproj" />
+  <Project Path="GameOfLife.ConsoleApp/GameOfLife.Data/GameOfLife.Data.csproj" Id="65dcf392-ff31-41a2-a67f-038b66375092" />
+  <Project Path="GameOfLife.ConsoleApp/GameOfLife.Services/GameOfLife.Services.csproj" Id="2e053bea-be8f-44eb-8b71-763eecfd8407" />
 </Solution>
