@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GameOfLife.Data
+﻿namespace GameOfLife.Data
 {
-    internal class CellStyle
+    public class CellStyle
     {
+        public char AliveChar { get; set; } = 'X';
+        public char DeadChar { get; set; } = '0';
     }
 }

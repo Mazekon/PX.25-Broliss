@@ -6,7 +6,7 @@ namespace GameOfLife.ConsoleApp
     {
         private const int MinSize = 2;
         private const int MaxSize = 50;
-     
+
 
         public void Run()
         {

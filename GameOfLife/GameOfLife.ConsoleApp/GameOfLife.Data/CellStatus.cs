@@ -1,10 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace GameOfLife.Data
 {
-    internal class CellStatus
+    public class CellStatus
     {
+        public bool Current { get; set; }
+        public bool Previous { get; set; }
+
+        public CellStatus(bool current = false)
+        {
+            Current = current;
+            Previous = false;
+        }
+
+        public void Commit()
+        {
+            Previous = Current;
+        }
     }
 }
