@@ -1,7 +1,7 @@
 ﻿namespace GameOfLife.ConsopeApp
 {
 
- public class GameLogic
+    public class GameLogic
     {
         private readonly char liveSymbol;
         private readonly char deadSymbol;
@@ -29,4 +29,3 @@
     }
 }
 
-public char[,] GetNextGeneration(char[,] currentBoard)

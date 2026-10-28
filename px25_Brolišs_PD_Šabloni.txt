@@ -1,0 +1,6 @@
+Mans Sablons: Builder - 
+1. Tas palidz izveidot sarežģītas montāžas izmantojot to pašu montāžas procesu
+
+2. Builder šablons Game of Life lietotnē atrisina sarežģīta sākuma laukuma konfigurēšanas problēmu ļaujot pa soļiem noteikt tā izmēru simbolus un sākuma šablonus
+
+3. Flyweight un Builder nespēj efektīvi mijiedarboties jo tiem ir pretēji mērķi - Builder katru reizi būvē jaunus atsevišķus un unikālus objektus savukārt Flyweight taupa atmiņu, atkalizmatojot un koplietojot jau esošas instances.
