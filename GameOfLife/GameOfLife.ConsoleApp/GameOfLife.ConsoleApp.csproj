@@ -13,4 +13,9 @@
     <Compile Remove="GameOfLife.Data\**\*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="GameOfLife.Data\GameOfLife.Data.csproj" />
+    <ProjectReference Include="GameOfLife.Services\GameOfLife.Services.csproj" />
+  </ItemGroup>
+
 </Project>
