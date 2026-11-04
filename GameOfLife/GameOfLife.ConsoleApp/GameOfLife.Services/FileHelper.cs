@@ -15,35 +15,13 @@ namespace GameOfLife.Services
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
                 string fileName = $"GameSave {DateTime.Now:yyyy-MM-dd HHmmss}.json";
                 string filePath = Path.Combine(desktopPath, fileName);
-
-                CellStatus[][] serializableGrid = null;
-                if (gameData.CurrentGrid != null)
+                var savedGame = new SavedGameData
                 {
-                    int rows = gameData.CurrentGrid.GetLength(0);
-                    int columns = gameData.CurrentGrid.GetLength(1);
-                    serializableGrid = new CellStatus[rows][];
-
-                    for (int row = 0; row < rows; row++)
-                    {
-                        serializableGrid[row] = new CellStatus[columns];
-                        for (int column = 0; column < columns; column++)
-                        {
-                            serializableGrid[row][column] = gameData.CurrentGrid[row, column];
-                        }
-                    }
-                }
-
-                var serializableGameData = new
-                {
-                    gameData.CurrentGeneration,
-                    CurrentGrid = serializableGrid
+                    CurrentGeneration = gameData.CurrentGeneration,
+                    CurrentGrid = gameData.CurrentGrid
                 };
 
-                string json = JsonSerializer.Serialize(serializableGameData, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
+                string json = JsonSerializer.Serialize(savedGame, CreateJsonOptions());
                 File.WriteAllText(filePath, json);
                 return true;
             }
@@ -55,6 +33,56 @@ namespace GameOfLife.Services
             {
                 return false;
             }
+        }
+
+        public GridDataobj? LoadGame(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                return null;
+
+            try
+            {
+                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                string filePath = Path.Combine(desktopPath, fileName);
+                string json = File.ReadAllText(filePath);
+                SavedGameData? savedGame = JsonSerializer.Deserialize<SavedGameData>(json, CreateJsonOptions());
+
+                if (savedGame == null || savedGame.CurrentGrid == null)
+                    return null;
+
+                return new GridDataobj(savedGame.CurrentGrid)
+                {
+                    CurrentGeneration = savedGame.CurrentGeneration
+                };
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        private static JsonSerializerOptions CreateJsonOptions()
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true
+            };
+            options.Converters.Add(new JsonConverter());
+            return options;
+        }
+
+        private class SavedGameData
+        {
+            public int CurrentGeneration { get; set; }
+            public CellStatus[,] CurrentGrid { get; set; } = new CellStatus[0, 0];
         }
     }
 }
