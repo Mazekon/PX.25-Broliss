@@ -7,7 +7,12 @@ namespace GameOfLife.Services
     {
         public bool TrySaveGame(GridDataobj gameData)
         {
-            if (gameData == null)
+            return gameData != null && TrySaveGames(new[] { gameData });
+        }
+
+        public bool TrySaveGames(IReadOnlyList<GridDataobj> games)
+        {
+            if (games == null || games.Count == 0)
                 return false;
 
             try
@@ -15,13 +20,13 @@ namespace GameOfLife.Services
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
                 string fileName = $"GameSave {DateTime.Now:yyyy-MM-dd HHmmss}.json";
                 string filePath = Path.Combine(desktopPath, fileName);
-                var savedGame = new SavedGameData
+                var savedGames = games.Select(game => new SavedGameData
                 {
-                    CurrentGeneration = gameData.CurrentGeneration,
-                    CurrentGrid = gameData.CurrentGrid
-                };
+                    CurrentGeneration = game.CurrentGeneration,
+                    CurrentGrid = game.CurrentGrid
+                }).ToList();
 
-                string json = JsonSerializer.Serialize(savedGame, CreateJsonOptions());
+                string json = JsonSerializer.Serialize(savedGames, CreateJsonOptions());
                 File.WriteAllText(filePath, json);
                 return true;
             }
@@ -33,9 +38,19 @@ namespace GameOfLife.Services
             {
                 return false;
             }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
 
         public GridDataobj? LoadGame(string fileName)
+        {
+            List<GridDataobj>? games = LoadGames(fileName);
+            return games?.FirstOrDefault();
+        }
+
+        public List<GridDataobj>? LoadGames(string fileName)
         {
             if (string.IsNullOrWhiteSpace(fileName))
                 return null;
@@ -45,15 +60,15 @@ namespace GameOfLife.Services
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
                 string filePath = Path.Combine(desktopPath, fileName);
                 string json = File.ReadAllText(filePath);
-                SavedGameData? savedGame = JsonSerializer.Deserialize<SavedGameData>(json, CreateJsonOptions());
+                List<SavedGameData>? savedGames = JsonSerializer.Deserialize<List<SavedGameData>>(json, CreateJsonOptions());
 
-                if (savedGame == null || savedGame.CurrentGrid == null)
+                if (savedGames == null || savedGames.Count == 0)
                     return null;
 
-                return new GridDataobj(savedGame.CurrentGrid)
+                return savedGames.Select(savedGame => new GridDataobj(savedGame.CurrentGrid)
                 {
                     CurrentGeneration = savedGame.CurrentGeneration
-                };
+                }).ToList();
             }
             catch (IOException)
             {
