@@ -136,41 +136,57 @@ namespace GameOfLife.ConsoleApp
         {
             Console.Clear();
 
-            for (int gameIndex = 0; gameIndex < games.Count; gameIndex++)
-                Console.Write($"Game {gameIndex + 1}".PadRight(games[gameIndex].GetLength(1) * 3 + 4));
+            const int gamesPerRow = 4;
 
-            Console.WriteLine();
-            int maxRows = games.Max(game => game.GetLength(0));
-
-            for (int row = 0; row < maxRows; row++)
+            for (int firstGame = 0; firstGame < games.Count; firstGame += gamesPerRow)
             {
-                for (int gameIndex = 0; gameIndex < games.Count; gameIndex++)
+                int lastGame = Math.Min(firstGame + gamesPerRow, games.Count);
+
+                for (int gameIndex = firstGame; gameIndex < lastGame; gameIndex++)
+                    Console.Write($"Game {gameIndex + 1}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                Console.WriteLine();
+
+                int maxRows = 0;
+                for (int gameIndex = firstGame; gameIndex < lastGame; gameIndex++)
+                    maxRows = Math.Max(maxRows, games[gameIndex].GetLength(0));
+
+                for (int row = 0; row < maxRows; row++)
                 {
-                    Cell[,] game = games[gameIndex];
-                    string line = row < game.GetLength(0)
-                        ? string.Concat(Enumerable.Range(0, game.GetLength(1)).Select(column => game[row, column].GetSymbol() + " "))
-                        : string.Empty;
-                    Console.Write(line.PadRight(game.GetLength(1) * 3 + 4));
+                    for (int gameIndex = firstGame; gameIndex < lastGame; gameIndex++)
+                    {
+                        Cell[,] game = games[gameIndex];
+                        string line = row < game.GetLength(0)
+                            ? string.Concat(Enumerable.Range(0, game.GetLength(1)).Select(column => game[row, column].GetSymbol()))
+                            : string.Empty;
+                        Console.Write(line.PadRight(GetGameBlockWidth(game)));
+                    }
+
+                    Console.WriteLine();
                 }
 
+                for (int gameIndex = firstGame; gameIndex < lastGame; gameIndex++)
+                    Console.Write($"Generation: {generation}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                Console.WriteLine();
+
+                for (int gameIndex = firstGame; gameIndex < lastGame; gameIndex++)
+                    Console.Write($"Live cells: {liveCounts[gameIndex]}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                Console.WriteLine();
+
+                for (int gameIndex = firstGame; gameIndex < lastGame; gameIndex++)
+                    Console.Write($"Amplitude: {amplitudes[gameIndex]}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                Console.WriteLine();
                 Console.WriteLine();
             }
 
-            for (int gameIndex = 0; gameIndex < games.Count; gameIndex++)
-                Console.Write($"Generation: {generation}".PadRight(games[gameIndex].GetLength(1) * 3 + 4));
-            Console.WriteLine();
-
-            for (int gameIndex = 0; gameIndex < games.Count; gameIndex++)
-                Console.Write($"Live cells: {liveCounts[gameIndex]}".PadRight(games[gameIndex].GetLength(1) * 3 + 4));
-            Console.WriteLine();
-
-            for (int gameIndex = 0; gameIndex < games.Count; gameIndex++)
-                Console.Write($"Amplitude: {amplitudes[gameIndex]}".PadRight(games[gameIndex].GetLength(1) * 3 + 4));
-            Console.WriteLine();
             Console.WriteLine("S: save all games | Esc: exit");
 
             if (!string.IsNullOrEmpty(message))
                 Console.WriteLine(message);
+        }
+
+        private int GetGameBlockWidth(Cell[,] game)
+        {
+            return game.GetLength(1) * 4 + 2;
         }
 
         private GridDataobj CreateGameData(Cell[,] grid, int generation)
