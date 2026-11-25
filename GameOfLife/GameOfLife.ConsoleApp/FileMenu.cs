@@ -24,7 +24,14 @@ namespace GameOfLife.ConsoleApp
                 for (int i = 0; i < files.Length; i++)
                 {
                     string marker = i == selectedIndex ? ">" : " ";
+                    if (i == selectedIndex)
+                    {
+                        Console.BackgroundColor = ConsoleColor.DarkGray;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                    }
+
                     Console.WriteLine($"{marker} {Path.GetFileName(files[i])}");
+                    Console.ResetColor();
                 }
 
                 ConsoleKey key = Console.ReadKey(true).Key;
