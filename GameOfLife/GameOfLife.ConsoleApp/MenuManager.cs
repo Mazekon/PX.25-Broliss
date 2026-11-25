@@ -6,9 +6,10 @@ namespace GameOfLife.ConsoleApp
 {
     internal class MenuManager : IMenuManager
     {
-        private const int MinSize = 2;
-        private const int MaxSize = 10;
-        private const int MaxGames = 8;
+        private const int DefaultMinSize = 2;
+        private const int DefaultMaxSize = 10;
+        private const int MaxGames = 1000;
+        private const int MaxDisplayedGames = 8;
 
         public void Run()
         {
@@ -53,15 +54,21 @@ namespace GameOfLife.ConsoleApp
             if (!int.TryParse(Console.ReadLine(), out int gameCount) || gameCount < 1 || gameCount > MaxGames)
                 return;
 
-            Console.Write($"Enter game field size ({MinSize}-{MaxSize}): ");
-            if (!int.TryParse(Console.ReadLine(), out int size) || size < MinSize || size > MaxSize)
-                return;
+            int size;
+            while (true)
+            {
+                Console.Write($"Enter game field size ({DefaultMinSize}-{DefaultMaxSize}): ");
+                if (int.TryParse(Console.ReadLine(), out size) && size >= DefaultMinSize && size <= DefaultMaxSize)
+                    break;
+
+                Console.WriteLine($"Size must be between {DefaultMinSize} and {DefaultMaxSize}.");
+            }
 
             var games = new List<Cell[,]>();
             for (int index = 0; index < gameCount; index++)
                 games.Add(GetDefaultGrid(size));
 
-            PlayGames(games);
+            PlayGames(games, Enumerable.Range(0, Math.Min(games.Count, MaxDisplayedGames)).ToList());
         }
 
         private void LoadGame()
@@ -70,30 +77,44 @@ namespace GameOfLife.ConsoleApp
             if (string.IsNullOrEmpty(fileName))
                 return;
 
-            List<GridDataobj>? savedGames = new FileHelper().LoadGames(fileName);
-            if (savedGames == null || savedGames.Count == 0)
+            SavedGamesSession? session = new FileHelper().LoadSession(fileName);
+            if (session == null || session.Games.Count == 0)
             {
                 Console.WriteLine("Games could not be loaded.");
                 Console.ReadLine();
                 return;
             }
 
-            var games = savedGames.Take(MaxGames).Select(game => ConvertToCells(game.CurrentGrid)).ToList();
-            PlayGames(games, savedGames[0].CurrentGeneration);
+            var games = session.Games.Select(game => ConvertToCells(game.CurrentGrid)).ToList();
+            List<int> displayedGames = session.DisplayedGames
+                .Where(index => index >= 0 && index < games.Count)
+                .Take(MaxDisplayedGames)
+                .ToList();
+
+            if (displayedGames.Count == 0)
+                displayedGames = Enumerable.Range(0, Math.Min(games.Count, MaxDisplayedGames)).ToList();
+
+            PlayGames(games, displayedGames, session.Games[0].CurrentGeneration, session.Games.Select(game => game.DeadGenerations).ToArray());
         }
 
-        private void PlayGames(List<Cell[,]> games, int generation = 0)
+        private void PlayGames(List<Cell[,]> games, List<int> displayedGames, int generation = 0, int[]? savedDeadGenerations = null)
         {
             int[] liveCounts = games.Select(CountLiveCells).ToArray();
             int[] amplitudes = new int[games.Count];
+            int[] deadGenerations = savedDeadGenerations != null && savedDeadGenerations.Length == games.Count
+                ? savedDeadGenerations
+                : new int[games.Count];
+            bool[] deadGames = liveCounts.Select((count, index) => count == 0 || deadGenerations[index] > 0).ToArray();
+            bool paused = false;
             string message = string.Empty;
 
             while (true)
             {
-                PrintGames(games, generation, liveCounts, amplitudes, message);
+                PrintGames(games, displayedGames, generation, liveCounts, amplitudes, deadGames, deadGenerations, paused, message);
                 DateTime nextGeneration = DateTime.UtcNow.AddSeconds(1);
+                bool redraw = false;
 
-                while (DateTime.UtcNow < nextGeneration)
+                while (paused || DateTime.UtcNow < nextGeneration)
                 {
                     if (Console.KeyAvailable)
                     {
@@ -101,22 +122,60 @@ namespace GameOfLife.ConsoleApp
                         if (key == ConsoleKey.Escape)
                             return;
 
+                        if (key == ConsoleKey.L)
+                        {
+                            LoadGame();
+                            return;
+                        }
+
+                        if (key == ConsoleKey.P)
+                        {
+                            paused = !paused;
+                            message = paused ? "Game paused." : "Game resumed.";
+                            break;
+                        }
+
+                        if (key == ConsoleKey.V)
+                        {
+                            displayedGames = ChooseDisplayedGames(games, displayedGames, deadGames, liveCounts, generation);
+                            message = "Displayed games updated.";
+                            redraw = true;
+                            break;
+                        }
+
                         if (key == ConsoleKey.S)
                         {
                             var data = games.Select(game => CreateGameData(game, generation)).ToList();
-                            bool saved = new FileHelper().TrySaveGames(data);
-                            message = saved ? "Games saved." : "Games could not be saved.";
+                            var fileHelper = new FileHelper();
+                            bool saved = fileHelper.TrySaveGames(data, displayedGames, deadGenerations);
+                            message = saved ? $"Saved: {fileHelper.LastSavedFileName}" : "Games could not be saved.";
                         }
                     }
-                    System.Threading.Thread.Sleep(50);
+                    if (!paused)
+                        System.Threading.Thread.Sleep(50);
                 }
+
+                if (paused || redraw)
+                    continue;
 
                 Parallel.ForEach(Enumerable.Range(0, games.Count), index =>
                 {
+                    if (deadGames[index])
+                    {
+                        deadGenerations[index]++;
+                        return;
+                    }
+
                     games[index] = GetNextGeneration(games[index]);
                     int currentLiveCount = CountLiveCells(games[index]);
                     amplitudes[index] = Math.Abs(currentLiveCount - liveCounts[index]);
                     liveCounts[index] = currentLiveCount;
+
+                    if (currentLiveCount == 0)
+                    {
+                        deadGames[index] = true;
+                        deadGenerations[index] = 1;
+                    }
                 });
 
                 generation++;
@@ -124,24 +183,27 @@ namespace GameOfLife.ConsoleApp
             }
         }
 
-        private void PrintGames(List<Cell[,]> games, int generation, int[] liveCounts, int[] amplitudes, string message)
+        private void PrintGames(List<Cell[,]> games, List<int> displayedGames, int generation, int[] liveCounts, int[] amplitudes, bool[] deadGames, int[] deadGenerations, bool paused, string message)
         {
-            Console.Clear();
-            const int gamesPerRow = 4;
+            ClearConsole();
+            int gamesPerRow = Math.Max(1, Math.Min(4, Console.WindowWidth / GetGameBlockWidth(games[displayedGames[0]])));
 
-            for (int first = 0; first < games.Count; first += gamesPerRow)
+            for (int first = 0; first < displayedGames.Count; first += gamesPerRow)
             {
-                int last = Math.Min(first + gamesPerRow, games.Count);
+                int last = Math.Min(first + gamesPerRow, displayedGames.Count);
                 for (int index = first; index < last; index++)
-                    Console.Write($"Game {index + 1}".PadRight(GetGameBlockWidth(games[index])));
+                {
+                    int gameIndex = displayedGames[index];
+                    Console.Write($"Game {gameIndex + 1}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                }
                 Console.WriteLine();
 
-                int maxRows = games.Skip(first).Take(last - first).Max(game => game.GetLength(0));
+                int maxRows = displayedGames.Skip(first).Take(last - first).Max(gameIndex => games[gameIndex].GetLength(0));
                 for (int row = 0; row < maxRows; row++)
                 {
                     for (int index = first; index < last; index++)
                     {
-                        Cell[,] game = games[index];
+                        Cell[,] game = games[displayedGames[index]];
                         string line = row < game.GetLength(0)
                             ? string.Concat(Enumerable.Range(0, game.GetLength(1)).Select(column => game[row, column].GetSymbol()))
                             : string.Empty;
@@ -151,27 +213,129 @@ namespace GameOfLife.ConsoleApp
                 }
 
                 for (int index = first; index < last; index++)
-                    Console.Write($"Generation: {generation}".PadRight(GetGameBlockWidth(games[index])));
+                    Console.Write($"Generation: {generation}".PadRight(GetGameBlockWidth(games[displayedGames[index]])));
                 Console.WriteLine();
 
                 for (int index = first; index < last; index++)
-                    Console.Write($"Live cells: {liveCounts[index]}".PadRight(GetGameBlockWidth(games[index])));
+                {
+                    int gameIndex = displayedGames[index];
+                    Console.Write($"Live cells: {liveCounts[gameIndex]}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                }
                 Console.WriteLine();
 
                 for (int index = first; index < last; index++)
-                    Console.Write($"Amplitude: {amplitudes[index]}".PadRight(GetGameBlockWidth(games[index])));
+                {
+                    int gameIndex = displayedGames[index];
+                    Console.Write($"Amplitude: {amplitudes[gameIndex]}".PadRight(GetGameBlockWidth(games[gameIndex])));
+                }
+                Console.WriteLine();
+
+                for (int index = first; index < last; index++)
+                {
+                    int gameIndex = displayedGames[index];
+                    string status = deadGames[gameIndex] ? $"FINISHED ({deadGenerations[gameIndex]})" : "ACTIVE";
+                    Console.Write(status.PadRight(GetGameBlockWidth(games[gameIndex])));
+                }
                 Console.WriteLine();
                 Console.WriteLine();
             }
 
-            Console.WriteLine("S: save all games | Esc: exit");
+            Console.WriteLine($"P: {(paused ? "resume" : "pause")} | V: choose games | S: save all games | L: load game | Esc: main menu");
             if (!string.IsNullOrEmpty(message))
                 Console.WriteLine(message);
         }
 
+        private List<int> ChooseDisplayedGames(List<Cell[,]> games, List<int> currentSelection, bool[] deadGames, int[] liveCounts, int generation)
+        {
+            var selected = new HashSet<int>(currentSelection);
+            int cursor = currentSelection.Count > 0 ? currentSelection[0] : 0;
+            int firstVisible = 0;
+            int visibleRows = Math.Max(5, Math.Min(20, Console.WindowHeight - 6));
+
+            while (true)
+            {
+                ClearConsole();
+                Console.WriteLine("Choose games to display:");
+                Console.WriteLine("Up/Down: move | Space: select | Enter: confirm | Esc: cancel");
+                Console.WriteLine($"Selected: {selected.Count}/{MaxDisplayedGames}");
+                Console.WriteLine();
+
+                if (cursor < firstVisible)
+                    firstVisible = cursor;
+                if (cursor >= firstVisible + visibleRows)
+                    firstVisible = cursor - visibleRows + 1;
+
+                int lastVisible = Math.Min(firstVisible + visibleRows, games.Count);
+                for (int index = firstVisible; index < lastVisible; index++)
+                {
+                    bool focused = index == cursor;
+                    bool isSelected = selected.Contains(index);
+                    string status = deadGames[index] ? "FINISHED" : "ACTIVE";
+                    string line = $"{(isSelected ? "[X]" : "[ ]")} Game {index + 1}, Generation: {generation}, Live cells: {liveCounts[index]}, {status}";
+
+                    if (focused)
+                    {
+                        Console.BackgroundColor = ConsoleColor.DarkGray;
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = deadGames[index] ? ConsoleColor.Red : ConsoleColor.Green;
+                    }
+
+                    Console.WriteLine($"{(focused ? ">" : " ")} {line}");
+                    Console.ResetColor();
+                }
+
+                ConsoleKey key = Console.ReadKey(true).Key;
+
+                if (key == ConsoleKey.Escape)
+                    return currentSelection;
+
+                if (key == ConsoleKey.Enter)
+                    return selected.Count == 0 ? currentSelection : selected.OrderBy(index => index).ToList();
+
+                if (key == ConsoleKey.UpArrow)
+                    cursor = cursor == 0 ? games.Count - 1 : cursor - 1;
+
+                if (key == ConsoleKey.DownArrow)
+                    cursor = cursor == games.Count - 1 ? 0 : cursor + 1;
+
+                if (key == ConsoleKey.Spacebar)
+                {
+                    if (selected.Contains(cursor))
+                        selected.Remove(cursor);
+                    else
+                    {
+                        if (selected.Count == MaxDisplayedGames)
+                            selected.Remove(selected.First());
+
+                        selected.Add(cursor);
+                    }
+                }
+            }
+        }
+
+        private void ClearConsole()
+        {
+            try
+            {
+                Console.Write("\u001b[2J\u001b[3J\u001b[H");
+                Console.Out.Flush();
+            }
+            catch (IOException)
+            {
+                Console.Clear();
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                Console.Clear();
+            }
+        }
+
         private int GetGameBlockWidth(Cell[,] game)
         {
-            return game.GetLength(1) * 4 + 2;
+            return game.GetLength(1) * 4;
         }
 
         private GridDataobj CreateGameData(Cell[,] grid, int generation)
@@ -271,5 +435,6 @@ namespace GameOfLife.ConsoleApp
                 Console.WriteLine();
             }
         }
+
     }
 }
