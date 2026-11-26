@@ -1,6 +1,6 @@
-﻿namespace GameOfLife.ConsoleApp
+namespace GameOfLife.Data
 {
-    internal class Cell
+    public class Cell
     {
         public bool IsAlive { get; set; }
         public string AliveSymbol { get; set; } = "██";

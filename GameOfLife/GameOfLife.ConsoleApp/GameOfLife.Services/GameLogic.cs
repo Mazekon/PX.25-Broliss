@@ -1,30 +1,77 @@
-﻿namespace GameOfLife.ConsopeApp
+﻿namespace GameOfLife.Services
 {
-
-    public class GameLogic
+    public class GameLogic : IGameLogic
     {
-        private readonly char liveSymbol;
-        private readonly char deadSymbol;
-
-        public GameLogic(char liveSymbol = 'O', char deadSymbol = '.')
+        public Cell[,] CreateRandomGrid(int size)
         {
-            this.liveSymbol = liveSymbol;
-            this.deadSymbol = deadSymbol;
+            Cell[,] grid = new Cell[size, size];
+
+            for (int row = 0; row < size; row++)
+            {
+                for (int column = 0; column < size; column++)
+                    grid[row, column] = new Cell(Random.Shared.NextDouble() < 0.25);
+            }
+
+            return grid;
         }
 
-        public void InitializeBoard(char[,] board, double fillProbability = 0.25)
+        public Cell[,] GetNextGeneration(Cell[,] grid)
         {
-            Random random = new Random();
-            int rows = board.GetLength(0);
-            int cols = board.GetLength(1);
+            int rows = grid.GetLength(0);
+            int columns = grid.GetLength(1);
+            Cell[,] nextGrid = new Cell[rows, columns];
 
-            for (int r = 0; r < rows; r++)
+            for (int row = 0; row < rows; row++)
             {
-                for (int c = 0; c < cols; c++)
+                for (int column = 0; column < columns; column++)
                 {
-                    board[r, c] = random.NextDouble() < fillProbability ? liveSymbol : deadSymbol;
+                    int neighbors = CountLiveNeighbors(grid, row, column);
+                    bool alive = grid[row, column].IsAlive;
+                    bool nextState = alive ? neighbors == 2 || neighbors == 3 : neighbors == 3;
+                    nextGrid[row, column] = new Cell(nextState);
                 }
             }
+
+            return nextGrid;
+        }
+
+        public int CountLiveCells(Cell[,] grid)
+        {
+            int count = 0;
+
+            foreach (Cell cell in grid)
+            {
+                if (cell.IsAlive)
+                    count++;
+            }
+
+            return count;
+        }
+
+        private int CountLiveNeighbors(Cell[,] grid, int row, int column)
+        {
+            int count = 0;
+
+            for (int rowOffset = -1; rowOffset <= 1; rowOffset++)
+            {
+                for (int columnOffset = -1; columnOffset <= 1; columnOffset++)
+                {
+                    if (rowOffset == 0 && columnOffset == 0)
+                        continue;
+
+                    int neighborRow = row + rowOffset;
+                    int neighborColumn = column + columnOffset;
+
+                    if (neighborRow >= 0 && neighborRow < grid.GetLength(0) &&
+                        neighborColumn >= 0 && neighborColumn < grid.GetLength(1) &&
+                        grid[neighborRow, neighborColumn].IsAlive)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
         }
     }
 }

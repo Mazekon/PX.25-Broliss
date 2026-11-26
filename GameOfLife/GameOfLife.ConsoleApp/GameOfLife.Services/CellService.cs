@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GameOfLife.Services
+﻿namespace GameOfLife.Services
 {
     internal class CellService
     {

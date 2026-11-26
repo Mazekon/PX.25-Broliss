@@ -1,7 +1,4 @@
-﻿
-using System;
-
-namespace GameOfLife.Data
+﻿namespace GameOfLife.Data
 {
     public class GridDataobj
     {

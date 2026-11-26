@@ -10,6 +10,7 @@ namespace GameOfLife.ConsoleApp
         private const int DefaultMaxSize = 10;
         private const int MaxGames = 1000;
         private const int MaxDisplayedGames = 8;
+        private readonly IGameLogic gameLogic = new GameLogic();
 
         public void Run()
         {
@@ -66,7 +67,7 @@ namespace GameOfLife.ConsoleApp
 
             var games = new List<Cell[,]>();
             for (int index = 0; index < gameCount; index++)
-                games.Add(GetDefaultGrid(size));
+                games.Add(gameLogic.CreateRandomGrid(size));
 
             PlayGames(games, Enumerable.Range(0, Math.Min(games.Count, MaxDisplayedGames)).ToList());
         }
@@ -99,7 +100,7 @@ namespace GameOfLife.ConsoleApp
 
         private void PlayGames(List<Cell[,]> games, List<int> displayedGames, int generation = 0, int[]? savedDeadGenerations = null)
         {
-            int[] liveCounts = games.Select(CountLiveCells).ToArray();
+            int[] liveCounts = games.Select(gameLogic.CountLiveCells).ToArray();
             int[] amplitudes = new int[games.Count];
             int[] deadGenerations = savedDeadGenerations != null && savedDeadGenerations.Length == games.Count
                 ? savedDeadGenerations
@@ -111,7 +112,7 @@ namespace GameOfLife.ConsoleApp
             while (true)
             {
                 PrintGames(games, displayedGames, generation, liveCounts, amplitudes, deadGames, deadGenerations, paused, message);
-                DateTime nextGeneration = DateTime.UtcNow.AddSeconds(1);
+                DateTime nextGeneration = DateTime.UtcNow.AddMilliseconds(500);
                 bool redraw = false;
 
                 while (paused || DateTime.UtcNow < nextGeneration)
@@ -166,8 +167,8 @@ namespace GameOfLife.ConsoleApp
                         return;
                     }
 
-                    games[index] = GetNextGeneration(games[index]);
-                    int currentLiveCount = CountLiveCells(games[index]);
+                    games[index] = gameLogic.GetNextGeneration(games[index]);
+                    int currentLiveCount = gameLogic.CountLiveCells(games[index]);
                     amplitudes[index] = Math.Abs(currentLiveCount - liveCounts[index]);
                     liveCounts[index] = currentLiveCount;
 
@@ -362,67 +363,6 @@ namespace GameOfLife.ConsoleApp
                     grid[row, column] = new Cell(statusGrid[row, column].Current);
             }
             return grid;
-        }
-
-        private Cell[,] GetDefaultGrid(int size)
-        {
-            Cell[,] grid = new Cell[size, size];
-            for (int row = 0; row < size; row++)
-            {
-                for (int column = 0; column < size; column++)
-                    grid[row, column] = new Cell(Random.Shared.NextDouble() < 0.25);
-            }
-            return grid;
-        }
-
-        private Cell[,] GetNextGeneration(Cell[,] grid)
-        {
-            int rows = grid.GetLength(0);
-            int columns = grid.GetLength(1);
-            Cell[,] nextGrid = new Cell[rows, columns];
-
-            for (int row = 0; row < rows; row++)
-            {
-                for (int column = 0; column < columns; column++)
-                {
-                    int neighbors = CountLiveNeighbors(grid, row, column);
-                    bool alive = grid[row, column].IsAlive;
-                    nextGrid[row, column] = new Cell(alive ? neighbors == 2 || neighbors == 3 : neighbors == 3);
-                }
-            }
-            return nextGrid;
-        }
-
-        private int CountLiveNeighbors(Cell[,] grid, int row, int column)
-        {
-            int count = 0;
-            for (int rowOffset = -1; rowOffset <= 1; rowOffset++)
-            {
-                for (int columnOffset = -1; columnOffset <= 1; columnOffset++)
-                {
-                    if (rowOffset == 0 && columnOffset == 0)
-                        continue;
-                    int neighborRow = row + rowOffset;
-                    int neighborColumn = column + columnOffset;
-                    if (neighborRow >= 0 && neighborRow < grid.GetLength(0) && neighborColumn >= 0 && neighborColumn < grid.GetLength(1) && grid[neighborRow, neighborColumn].IsAlive)
-                        count++;
-                }
-            }
-            return count;
-        }
-
-        private static int CountLiveCells(Cell[,] grid)
-        {
-            int count = 0;
-            for (int row = 0; row < grid.GetLength(0); row++)
-            {
-                for (int column = 0; column < grid.GetLength(1); column++)
-                {
-                    if (grid[row, column].IsAlive)
-                        count++;
-                }
-            }
-            return count;
         }
 
         public void PrintGrid(Cell[,] grid)

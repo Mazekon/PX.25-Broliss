@@ -1,4 +1,6 @@
-﻿namespace GameOfLife.ConsoleApp
+﻿using GameOfLife.Data;
+
+namespace GameOfLife.ConsoleApp
 {
     internal interface IMenuManager
     {

@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace GameOfLife.Data
+﻿namespace GameOfLife.Data
 {
     public class CellStatus
     {
@@ -13,9 +11,5 @@ namespace GameOfLife.Data
             Previous = false;
         }
 
-        public void Commit()
-        {
-            Previous = Current;
-        }
     }
 }
